@@ -17,6 +17,7 @@ import ToolsDropdown from './ToolsDropdown';
 import type { BadgeItem } from '~/common';
 import { useChatBadges } from '~/hooks';
 import ToolDialogs from './ToolDialogs';
+import ModelParams from './ModelParams';
 import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
 import MCPSelect from './MCPSelect';
@@ -369,6 +370,7 @@ function BadgeRow({
             <FileSearch />
             <Artifacts />
             <MCPSelect />
+            <ModelParams />
           </>
         )}
         {ghostBadge && (

@@ -13,6 +13,7 @@ import {
   parseCompactConvo,
   replaceSpecialVars,
   isAssistantsEndpoint,
+  LocalStorageKeys,
 } from 'librechat-data-provider';
 import type {
   TMessage,
@@ -182,6 +183,22 @@ export default function useChatFunctions({
     });
 
     const { modelDisplayLabel } = endpointsConfig?.[endpoint ?? ''] ?? {};
+
+    // Get model-specific parameters from localStorage
+    const modelId = conversation?.model;
+    let modelParams: Record<string, unknown> = {};
+    if (modelId) {
+      try {
+        const storageKey = `${LocalStorageKeys.MODEL_PARAMS_PREFIX}${modelId}`;
+        const savedParams = localStorage.getItem(storageKey);
+        if (savedParams) {
+          modelParams = JSON.parse(savedParams);
+        }
+      } catch (e) {
+        console.error('Failed to parse model params from localStorage:', e);
+      }
+    }
+
     const endpointOption = Object.assign(
       {
         endpoint,
@@ -190,6 +207,8 @@ export default function useChatFunctions({
         overrideUserMessageId,
       },
       convo,
+      // Add model parameters to the endpoint option
+      Object.keys(modelParams).length > 0 ? { model_parameters: modelParams } : {},
     ) as TEndpointOption;
     if (endpoint !== EModelEndpoint.agents) {
       endpointOption.key = getExpiry();

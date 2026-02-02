@@ -358,6 +358,33 @@ export type TEndpointsConfig =
 
 export type TModelsConfig = Record<string, string[]>;
 
+/** Schema definition for a model parameter */
+export type TModelParameterSchema = {
+  type?: 'boolean' | 'number' | 'string';
+  enum?: string[];
+  minimum?: number;
+  maximum?: number;
+};
+
+/** Definition for a model parameter from Poe API */
+export type TModelParameter = {
+  name: string;
+  schema: TModelParameterSchema;
+  default_value?: unknown;
+  description?: string;
+};
+
+/** Model details including parameters */
+export type TModelDetails = {
+  parameters?: TModelParameter[];
+};
+
+/** Extended models config with model details */
+export type TModelsConfigWithDetails = {
+  models: TModelsConfig;
+  modelDetails?: Record<string, TModelDetails>;
+};
+
 export type TUpdateTokenCountResponse = {
   count: number;
 };

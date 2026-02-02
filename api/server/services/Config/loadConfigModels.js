@@ -1,4 +1,4 @@
-const { isUserProvided, fetchModels } = require('@librechat/api');
+const { isUserProvided, fetchModels, fetchModelsWithDetails } = require('@librechat/api');
 const {
   EModelEndpoint,
   extractEnvVariable,
@@ -10,13 +10,20 @@ const { getAppConfig } = require('./app');
  * Load config endpoints from the cached configuration object
  * @function loadConfigModels
  * @param {ServerRequest} req - The Express request object.
+ * @param {Object} options - Options for loading models.
+ * @param {boolean} [options.includeDetails=false] - Whether to include model parameter details.
+ * @returns {Promise<Object>} The models config, optionally with modelDetails.
  */
-async function loadConfigModels(req) {
+async function loadConfigModels(req, options = {}) {
+  const { includeDetails = false } = options;
   const appConfig = await getAppConfig({ role: req.user?.role });
   if (!appConfig) {
-    return {};
+    return includeDetails ? { models: {}, modelDetails: {} } : {};
   }
   const modelsConfig = {};
+  /** @type {Record<string, import('librechat-data-provider').TModelDetails>} */
+  const allModelDetails = {};
+
   const azureConfig = appConfig.endpoints?.[EModelEndpoint.azureOpenAI];
   const { modelNames } = azureConfig ?? {};
 
@@ -29,7 +36,7 @@ async function loadConfigModels(req) {
   }
 
   if (!Array.isArray(appConfig.endpoints?.[EModelEndpoint.custom])) {
-    return modelsConfig;
+    return includeDetails ? { models: modelsConfig, modelDetails: allModelDetails } : modelsConfig;
   }
 
   const customEndpoints = appConfig.endpoints[EModelEndpoint.custom].filter(
@@ -42,7 +49,7 @@ async function loadConfigModels(req) {
   );
 
   /**
-   * @type {Record<string, Promise<string[]>>}
+   * @type {Record<string, Promise<string[]|{models: string[], modelDetails: Record<string, any>}>>}
    * Map for promises keyed by unique combination of baseURL and apiKey */
   const fetchPromisesMap = {};
   /**
@@ -68,9 +75,10 @@ async function loadConfigModels(req) {
     modelsConfig[name] = [];
 
     if (models.fetch && !isUserProvided(API_KEY) && !isUserProvided(BASE_URL)) {
+      const fetchFn = includeDetails ? fetchModelsWithDetails : fetchModels;
       fetchPromisesMap[uniqueKey] =
         fetchPromisesMap[uniqueKey] ||
-        fetchModels({
+        fetchFn({
           name,
           apiKey: API_KEY,
           baseURL: BASE_URL,
@@ -97,13 +105,29 @@ async function loadConfigModels(req) {
 
   for (let i = 0; i < fetchedData.length; i++) {
     const currentKey = uniqueKeys[i];
-    const modelData = fetchedData[i];
+    const data = fetchedData[i];
     const associatedNames = uniqueKeyToEndpointsMap[currentKey];
 
     for (const name of associatedNames) {
       const endpoint = endpointsMap[name];
-      modelsConfig[name] = !modelData?.length ? (endpoint.models.default ?? []) : modelData;
+
+      if (includeDetails && data && typeof data === 'object' && 'models' in data) {
+        // fetchModelsWithDetails returns { models, modelDetails }
+        const { models: modelList, modelDetails } = data;
+        modelsConfig[name] = !modelList?.length ? (endpoint.models.default ?? []) : modelList;
+        // Merge model details
+        if (modelDetails) {
+          Object.assign(allModelDetails, modelDetails);
+        }
+      } else {
+        // fetchModels returns string[]
+        modelsConfig[name] = !data?.length ? (endpoint.models.default ?? []) : data;
+      }
     }
+  }
+
+  if (includeDetails) {
+    return { models: modelsConfig, modelDetails: allModelDetails };
   }
 
   return modelsConfig;

@@ -193,6 +193,22 @@ export const useGetModelsQuery = (
   });
 };
 
+export const useGetModelsWithDetailsQuery = (
+  config?: UseQueryOptions<t.TModelsConfigWithDetails>,
+): QueryObserverResult<t.TModelsConfigWithDetails> => {
+  return useQuery<t.TModelsConfigWithDetails>(
+    [QueryKeys.models, 'withDetails'],
+    () => dataService.getModelsWithDetails(),
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+      staleTime: Infinity,
+      ...config,
+    },
+  );
+};
+
 export const useCreatePresetMutation = (): UseMutationResult<
   s.TPreset,
   unknown,

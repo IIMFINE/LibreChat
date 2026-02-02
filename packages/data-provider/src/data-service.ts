@@ -200,6 +200,10 @@ export const getModels = async (): Promise<t.TModelsConfig> => {
   return request.get(endpoints.models());
 };
 
+export const getModelsWithDetails = async (): Promise<t.TModelsConfigWithDetails> => {
+  return request.get(endpoints.models(true));
+};
+
 /* Assistants */
 
 export const createAssistant = ({

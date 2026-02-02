@@ -5,13 +5,17 @@ const { getLogStores } = require('~/cache');
 
 /**
  * @param {ServerRequest} req
- * @returns {Promise<TModelsConfig>} The models config.
+ * @param {Object} options
+ * @param {boolean} [options.includeDetails=false] - Whether to include model parameter details.
+ * @returns {Promise<TModelsConfig|{models: TModelsConfig, modelDetails: Record<string, TModelDetails>}>} The models config.
  */
-const getModelsConfig = async (req) => {
+const getModelsConfig = async (req, options = {}) => {
+  const { includeDetails = false } = options;
+  const cacheKey = includeDetails ? CacheKeys.MODELS_CONFIG + '_details' : CacheKeys.MODELS_CONFIG;
   const cache = getLogStores(CacheKeys.CONFIG_STORE);
-  let modelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
+  let modelsConfig = await cache.get(cacheKey);
   if (!modelsConfig) {
-    modelsConfig = await loadModels(req);
+    modelsConfig = await loadModels(req, options);
   }
 
   return modelsConfig;
@@ -20,26 +24,42 @@ const getModelsConfig = async (req) => {
 /**
  * Loads the models from the config.
  * @param {ServerRequest} req - The Express request object.
- * @returns {Promise<TModelsConfig>} The models config.
+ * @param {Object} options
+ * @param {boolean} [options.includeDetails=false] - Whether to include model parameter details.
+ * @returns {Promise<TModelsConfig|{models: TModelsConfig, modelDetails: Record<string, TModelDetails>}>} The models config.
  */
-async function loadModels(req) {
+async function loadModels(req, options = {}) {
+  const { includeDetails = false } = options;
+  const cacheKey = includeDetails ? CacheKeys.MODELS_CONFIG + '_details' : CacheKeys.MODELS_CONFIG;
   const cache = getLogStores(CacheKeys.CONFIG_STORE);
-  const cachedModelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
+  const cachedModelsConfig = await cache.get(cacheKey);
   if (cachedModelsConfig) {
     return cachedModelsConfig;
   }
-  const defaultModelsConfig = await loadDefaultModels(req);
-  const customModelsConfig = await loadConfigModels(req);
 
+  const defaultModelsConfig = await loadDefaultModels(req);
+
+  if (includeDetails) {
+    const customResult = await loadConfigModels(req, { includeDetails: true });
+    const modelConfig = {
+      models: { ...defaultModelsConfig, ...customResult.models },
+      modelDetails: customResult.modelDetails || {},
+    };
+    await cache.set(cacheKey, modelConfig);
+    return modelConfig;
+  }
+
+  const customModelsConfig = await loadConfigModels(req);
   const modelConfig = { ...defaultModelsConfig, ...customModelsConfig };
 
-  await cache.set(CacheKeys.MODELS_CONFIG, modelConfig);
+  await cache.set(cacheKey, modelConfig);
   return modelConfig;
 }
 
 async function modelController(req, res) {
   try {
-    const modelConfig = await loadModels(req);
+    const includeDetails = req.query.includeDetails === 'true';
+    const modelConfig = await loadModels(req, { includeDetails });
     res.send(modelConfig);
   } catch (error) {
     logger.error('Error fetching models:', error);

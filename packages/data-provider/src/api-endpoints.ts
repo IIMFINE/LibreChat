@@ -131,7 +131,8 @@ export const deletePreset = () => `${BASE_URL}/api/presets/delete`;
 
 export const aiEndpoints = () => `${BASE_URL}/api/endpoints`;
 
-export const models = () => `${BASE_URL}/api/models`;
+export const models = (includeDetails?: boolean) =>
+  `${BASE_URL}/api/models${includeDetails ? '?includeDetails=true' : ''}`;
 
 export const tokenizer = () => `${BASE_URL}/api/tokenizer`;
 

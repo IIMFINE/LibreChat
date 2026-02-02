@@ -1805,6 +1805,8 @@ export enum LocalStorageKeys {
   PIN_WEB_SEARCH_ = 'PIN_WEB_SEARCH_',
   /** Pin state for Code Interpreter per conversation ID */
   PIN_CODE_INTERPRETER_ = 'PIN_CODE_INTERPRETER_',
+  /** Prefix key for model-specific parameter values */
+  MODEL_PARAMS_PREFIX = 'modelParams_',
 }
 
 export enum ForkOptions {

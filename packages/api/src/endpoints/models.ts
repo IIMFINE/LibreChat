@@ -2,6 +2,7 @@ import axios from 'axios';
 import { logger } from '@librechat/data-schemas';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CacheKeys, KnownEndpoints, EModelEndpoint, defaultModels } from 'librechat-data-provider';
+import type { TModelParameter, TModelDetails } from 'librechat-data-provider';
 import type { IUser } from '@librechat/data-schemas';
 import {
   processModelData,
@@ -37,6 +38,12 @@ export interface FetchModelsParams {
   headers?: Record<string, string> | null;
   /** Optional user object for header resolution */
   userObject?: Partial<IUser>;
+}
+
+/** Result from fetchModelsWithDetails */
+export interface FetchModelsWithDetailsResult {
+  models: string[];
+  modelDetails: Record<string, TModelDetails>;
 }
 
 /**
@@ -388,4 +395,118 @@ export function getBedrockModels(): string[] {
     models = splitAndTrim(process.env.BEDROCK_AWS_MODELS);
   }
   return models;
+}
+
+/**
+ * Fetches models with their parameter definitions from the API.
+ * This is used to get model-specific parameters like thinking_level, thinking_budget, etc.
+ *
+ * @param params - The parameters for fetching the models.
+ * @returns A promise that resolves to models and their details including parameters.
+ */
+export async function fetchModelsWithDetails({
+  user,
+  apiKey,
+  baseURL: _baseURL,
+  name = EModelEndpoint.openAI,
+  direct = false,
+  azure = false,
+  userIdQuery = false,
+  createTokenConfig = true,
+  tokenKey,
+  headers,
+}: FetchModelsParams): Promise<FetchModelsWithDetailsResult> {
+  const result: FetchModelsWithDetailsResult = {
+    models: [],
+    modelDetails: {},
+  };
+
+  const baseURL = direct ? extractBaseURL(_baseURL ?? '') : _baseURL;
+
+  if (!baseURL && !azure) {
+    return result;
+  }
+
+  if (!apiKey) {
+    return result;
+  }
+
+  try {
+    const options: {
+      headers: Record<string, string>;
+      timeout: number;
+      httpsAgent?: HttpsProxyAgent<string>;
+    } = {
+      headers: {
+        ...(headers ?? {}),
+      },
+      timeout: 5000,
+    };
+
+    if (name === EModelEndpoint.anthropic) {
+      options.headers = {
+        'x-api-key': apiKey,
+        'anthropic-version': process.env.ANTHROPIC_VERSION || '2023-06-01',
+      };
+    } else {
+      options.headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    if (process.env.PROXY) {
+      options.httpsAgent = new HttpsProxyAgent(process.env.PROXY);
+    }
+
+    if (process.env.OPENAI_ORGANIZATION && baseURL?.includes('openai')) {
+      options.headers['OpenAI-Organization'] = process.env.OPENAI_ORGANIZATION;
+    }
+
+    const url = new URL(`${(baseURL ?? '').replace(/\/+$/, '')}${azure ? '' : '/models'}`);
+    if (user && userIdQuery) {
+      url.searchParams.append('user', user);
+    }
+    const res = await axios.get(url.toString(), options);
+
+    const input = res.data;
+
+    const validationResult = inputSchema.safeParse(input);
+    if (validationResult.success && createTokenConfig) {
+      const endpointTokenConfig = processModelData(input);
+      const cache = standardCache(CacheKeys.TOKEN_CONFIG);
+      await cache.set(tokenKey ?? name, endpointTokenConfig);
+    }
+
+    // Extract models and their parameters
+    if (input.data && Array.isArray(input.data)) {
+      for (const model of input.data) {
+        const modelId = model.id;
+        result.models.push(modelId);
+
+        // Extract parameters if available
+        if (model.parameters && Array.isArray(model.parameters)) {
+          const parameters: TModelParameter[] = model.parameters.map(
+            (param: {
+              name: string;
+              schema?: { type?: string; enum?: string[]; minimum?: number; maximum?: number };
+              default_value?: unknown;
+              description?: string;
+            }) => ({
+              name: param.name,
+              schema: param.schema ?? {},
+              default_value: param.default_value,
+              description: param.description,
+            }),
+          );
+
+          if (parameters.length > 0) {
+            result.modelDetails[modelId] = { parameters };
+          }
+        }
+      }
+    }
+  } catch (error) {
+    const logMessage = `Failed to fetch models with details from ${azure ? 'Azure ' : ''}${name} API`;
+    logAxiosError({ message: logMessage, error: error as Error });
+  }
+
+  return result;
 }

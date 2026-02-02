@@ -129,6 +129,9 @@ helm/**/.values.yaml
 # SAML Idp cert
 *.cert
 
+# Git Worktrees
+.worktrees/
+
 # AI Assistants
 /.claude/
 /.cursor/

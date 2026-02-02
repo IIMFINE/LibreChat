@@ -259,9 +259,18 @@ export function getOpenAILLMConfig({
     modelKwargs.plugins = [{ id: 'web' }];
     hasModelKwargs = true;
   } else if (enableWebSearch) {
-    /** Standard OpenAI web search uses tools API */
-    llmConfig.useResponsesApi = true;
-    tools.push({ type: 'web_search' });
+    /** Check if this is a custom endpoint (not OpenAI or Azure) */
+    const isCustomEndpoint =
+      endpoint !== EModelEndpoint.openAI && endpoint !== EModelEndpoint.azureOpenAI;
+    if (isCustomEndpoint) {
+      /** Custom endpoints (like Poe) expect web_search as a direct parameter */
+      modelKwargs.web_search = true;
+      hasModelKwargs = true;
+    } else {
+      /** Standard OpenAI web search uses tools API */
+      llmConfig.useResponsesApi = true;
+      tools.push({ type: 'web_search' });
+    }
   }
 
   /**

@@ -785,6 +785,7 @@ class AgentClient extends BaseClient {
     });
 
     const completion = filterMalformedContentParts(this.contentParts);
+
     return { completion };
   }
 

@@ -79,7 +79,31 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   const collectedUsage = [];
   /** @type {ArtifactPromises} */
   const artifactPromises = [];
-  const { contentParts, aggregateContent } = createContentAggregator();
+  const { contentParts, aggregateContent: originalAggregateContent, stepMap } = createContentAggregator();
+
+  // 包装 aggregateContent 来添加去重逻辑
+  // 问题：某些 LLM 提供商在流式响应的最后会发送一个包含完整内容的 chunk
+  // 这会导致内容被重复追加
+  const aggregateContent = ({ event, data }) => {
+    if (event === 'on_message_delta' && data?.delta?.content?.[0]?.text) {
+      const newText = data.delta.content[0].text;
+      const runStep = stepMap.get(data.id);
+      if (runStep) {
+        const currentContent = contentParts[runStep.index];
+        const currentText = currentContent?.text || '';
+
+        // 去重检测：如果新内容与当前内容相同，或者当前内容以新内容开头，则跳过
+        // 这种情况发生在 LLM 在最后发送完整内容时
+        if (currentText && newText.length > 100) {
+          // 检查新内容是否是当前内容的重复（完整内容再次发送）
+          if (currentText === newText || currentText.startsWith(newText.substring(0, Math.min(100, newText.length)))) {
+            return;
+          }
+        }
+      }
+    }
+    return originalAggregateContent({ event, data });
+  };
   const toolEndCallback = createToolEndCallback({ req, res, artifactPromises, streamId });
   const eventHandlers = getDefaultHandlers({
     res,

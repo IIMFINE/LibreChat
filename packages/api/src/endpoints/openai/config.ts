@@ -32,10 +32,12 @@ export function getOpenAIConfig(
     streaming = true,
     modelOptions = {},
     reverseProxyUrl: baseURL,
+    defaultParams: configDefaultParams,
   } = options;
 
-  /** Extract default params from customParams.paramDefinitions */
-  const defaultParams = extractDefaultParams(options.customParams?.paramDefinitions);
+  /** Extract default params from customParams.paramDefinitions and merge with config defaultParams */
+  const extractedDefaultParams = extractDefaultParams(options.customParams?.paramDefinitions);
+  const defaultParams = { ...configDefaultParams, ...extractedDefaultParams };
 
   let llmConfig: t.OAIClientOptions;
   let tools: t.LLMConfigResult['tools'];

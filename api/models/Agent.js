@@ -101,14 +101,21 @@ const getAgents = async (searchParameter) => await Agent.find(searchParameter).l
  */
 const loadEphemeralAgent = async ({ req, spec, endpoint, model_parameters: _m }) => {
   const { model, ...model_parameters } = _m;
+  /** @type {TEphemeralAgent | null} */
+  const ephemeralAgent = req.body.ephemeralAgent;
+
+  // Sync ephemeralAgent.web_search to model_parameters for custom endpoints
+  // Only sync when explicitly true - let defaultParams handle the default case
+  // This ensures the web_search toggle in the UI affects the API request
+  if (ephemeralAgent?.web_search === true) {
+    model_parameters.web_search = true;
+  }
   const modelSpecs = req.config?.modelSpecs?.list;
   /** @type {TModelSpec | null} */
   let modelSpec = null;
   if (spec != null && spec !== '') {
     modelSpec = modelSpecs?.find((s) => s.name === spec) || null;
   }
-  /** @type {TEphemeralAgent | null} */
-  const ephemeralAgent = req.body.ephemeralAgent;
   const mcpServers = new Set(ephemeralAgent?.mcp);
   const userId = req.user?.id; // note: userId cannot be undefined at runtime
   if (modelSpec?.mcpServers) {

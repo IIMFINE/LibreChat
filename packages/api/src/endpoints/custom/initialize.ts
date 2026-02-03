@@ -28,6 +28,7 @@ function buildCustomOptions(
     headers: endpointConfig.headers,
     addParams: endpointConfig.addParams,
     dropParams: endpointConfig.dropParams,
+    defaultParams: endpointConfig.defaultParams,
     customParams: endpointConfig.customParams,
     titleConvo: endpointConfig.titleConvo,
     titleModel: endpointConfig.titleModel,

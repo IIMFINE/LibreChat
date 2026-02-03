@@ -177,6 +177,13 @@ const loadAddedAgent = async ({ req, conversation, primaryAgent }) => {
     }
   }
 
+  // Sync ephemeralAgent.web_search to model_parameters for custom endpoints
+  // Only sync when explicitly true - let defaultParams handle the default case
+  // This ensures the web_search toggle in the UI affects the API request
+  if (ephemeralAgent?.web_search === true) {
+    model_parameters.web_search = true;
+  }
+
   // Get endpoint config for modelDisplayLabel fallback
   const appConfig = req.config;
   let endpointConfig = appConfig?.endpoints?.[endpoint];

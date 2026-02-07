@@ -9,7 +9,10 @@ services:
     depends_on:
       - mongodb
       - rag_api
-    image: ghcr.io/danny-avila/librechat-dev:latest
+    image: librechat-local
+    build:
+      context: .
+      target: node
     restart: always
     user: "${UID}:${GID}"
     extra_hosts:

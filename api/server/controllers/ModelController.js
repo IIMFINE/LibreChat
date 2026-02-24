@@ -1,5 +1,5 @@
 const { logger } = require('@librechat/data-schemas');
-const { CacheKeys } = require('librechat-data-provider');
+const { CacheKeys, Time } = require('librechat-data-provider');
 const { loadDefaultModels, loadConfigModels } = require('~/server/services/Config');
 const { getLogStores } = require('~/cache');
 
@@ -45,14 +45,14 @@ async function loadModels(req, options = {}) {
       models: { ...defaultModelsConfig, ...customResult.models },
       modelDetails: customResult.modelDetails || {},
     };
-    await cache.set(cacheKey, modelConfig);
+    await cache.set(cacheKey, modelConfig, Time.FIVE_MINUTES);
     return modelConfig;
   }
 
   const customModelsConfig = await loadConfigModels(req);
   const modelConfig = { ...defaultModelsConfig, ...customModelsConfig };
 
-  await cache.set(cacheKey, modelConfig);
+  await cache.set(cacheKey, modelConfig, Time.FIVE_MINUTES);
   return modelConfig;
 }
 

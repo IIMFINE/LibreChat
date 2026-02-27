@@ -142,7 +142,7 @@ export async function fetchModels({
       headers: {
         ...(headers ?? {}),
       },
-      timeout: 5000,
+      timeout: 15000,
     };
 
     if (name === EModelEndpoint.anthropic) {
@@ -440,7 +440,7 @@ export async function fetchModelsWithDetails({
       headers: {
         ...(headers ?? {}),
       },
-      timeout: 5000,
+      timeout: 15000,
     };
 
     if (name === EModelEndpoint.anthropic) {
